@@ -34,9 +34,11 @@ var PartyItem = function (text) {
         var o = JSON.parse(text);
         this.count = parseInt(o.count);
         this.balance = parseFloat(o.balance);
+        this.flag = o.flag;
     } else {
         this.count = 0;
         this.balance = 0.0;
+        this.flag = "";
     }
 };
 
@@ -114,27 +116,24 @@ BattleContract.prototype = {
     init: function () {
         this.battleCount = 0;
         this.founderCharge = 0.03;
-        this.durationTime = 180000;
-        this.bankAddress = "n1cLy47ogZ1skZ95x1z1WTL6QSi9jNkhcDn";
-        this.adminAddress = "n1FXZVbvLLHhWGK9rgAwLjsXt2jp3SEkFkM";
+        this.durationTime = 86400000;
+        this.bankAddress = "n1aRaRVXrRr1be7i8y1ZCZnEBwX7HGUmQHr";
+        this.adminAddress = "n1PMUxrXSuHQcDRLRHLTrokqQHtDUXdXE9r";
         this.adminCharge = 0;
 
         this.currentBattleKey = "";
         this.isBattling = false;
     },
 
-    setupBattle: function (setupFlag, battleName, redPartyDes, bluePartyDes) {
+    setupBattle: function (battleName, redPartyDes, bluePartyDes) {
         if (this.isBattling != false) {
             throw new Error("battle not complete.");
-        }
-        if (setupFlag != "red" && setupFlag != "blue") {
-            throw new Error("setup flag invalid");
         }
 
         var from = Blockchain.transaction.from;
         this.currentBattleKey = "battle@@@" + this.battleCount.toString();
-        var partyKey = this.currentBattleKey + "@@@" + setupFlag;
-        var fighterKey = partyKey + "@@@" + from;
+        var redPartyKey = this.currentBattleKey + "@@@red";
+        var bluePartyKey = this.currentBattleKey + "@@@blue";
 
         var battleItem = new BattleItem();
         battleItem.id = this.currentBattleKey;
@@ -147,57 +146,61 @@ BattleContract.prototype = {
         battleItem.createTime = new Date().getTime();
         this.battleMap.put(this.currentBattleKey, battleItem);
 
-        var partyItem = new PartyItem();
-        partyItem.balance = 0.0;
-        partyItem.count = 0;
-        var fighterItem = new FighterItem();
-        fighterItem.investment = 0.0;
-        fighterItem.reward = 0.0;
-        fighterItem.from = from;
-        var fighterId = partyKey + "@@@" + partyItem.count.toString();
-        this.fightersIdMap.put(fighterId, fighterKey);
-        partyItem.count += 1;
-        this.fightersMap.put(fighterKey, fighterItem);
-        this.partyMap.put(partyKey, partyItem);
-
-        var counterPartyItem = new PartyItem();
-        counterPartyItem.balance = 0.0;
-        counterPartyItem.count = 0;
-        var counterPartyKey = "";
-        if (setupFlag == "red") {
-            counterPartyKey = this.currentBattleKey + "@@@blue";
-        } else {
-            counterPartyKey = this.currentBattleKey + "@@@red";
-        }
-        this.partyMap.put(counterPartyKey, counterPartyItem);
+        var redPartyItem = new PartyItem();
+        redPartyItem.balance = 0.0;
+        redPartyItem.count = 0;
+        redPartyItem.flag = "red";
+        this.partyMap.put(redPartyKey, redPartyItem);
+        var bluePartyItem = new PartyItem();
+        bluePartyItem.balance = 0.0;
+        bluePartyItem.count = 0;
+        bluePartyItem.flag = "blue";
+        this.partyMap.put(bluePartyKey, bluePartyItem);
 
         this.isBattling = true;
         this.battleCount += 1;
     },
 
     joinBattle: function (flag) {
+        if (this.isBattling != true) {
+            throw new Error("battle is completed.");
+        }
+        if (this.battleMap.get(this.currentBattleKey).createTime + this.durationTime < new Date().getTime()) {
+            throw new Error("battle is complete.");
+        }
         if (flag != "red" && flag != "blue") {
             throw new Error("setup flag invalid");
         }
 
         var from = Blockchain.transaction.from;
         var value = Blockchain.transaction.value.dividedBy(1000000000000000000).toNumber();
+        if (value > 1.0) {
+            throw new Error("exceed the maximum voting limit.");
+        }
         var partyKey = this.currentBattleKey + "@@@" + flag;
         var partyItem = this.partyMap.get(partyKey);
         var fighterKey = partyKey + "@@@" + from;
         var fighterItem = this.fightersMap.get(fighterKey);
         if (!fighterItem) {
-            var fighterId = partyKey + "@@@" + partyItem.count.toString();
-            partyItem.count += 1;
-            this.fightersIdMap.put(fighterId, fighterKey);
             fighterItem = new FighterItem();
             fighterItem.reward = 0.0;
             fighterItem.investment = 0.0;
             fighterItem.from = from;
+            var fighterId = partyKey + "@@@" + partyItem.count.toString();
+            partyItem.count += 1;
+            this.fightersIdMap.put(fighterId, fighterKey);
         }
+        value *= 1000000;
+        fighterItem.investment *= 1000000;
         fighterItem.investment += value;
+        fighterItem.investment /= 1000000;
+        if (fighterItem.investment > 1.0) {
+            throw new Error("exceed the maximum voting limit.");
+        }
         this.fightersMap.put(fighterKey, fighterItem);
+        partyItem.balance *= 1000000;
         partyItem.balance += value;
+        partyItem.balance /= 1000000;
         this.partyMap.put(partyKey, partyItem);
     },
 
@@ -205,9 +208,9 @@ BattleContract.prototype = {
         if (this.isBattling != true) {
             throw new Error("battle not started yet.");
         }
-        // if (this.battleMap.get(this.currentBattleKey).createTime + this.durationTime > new Date().getTime()) {
-        //     throw new Error("battle not complete.");
-        // }
+        if (this.battleMap.get(this.currentBattleKey).createTime + this.durationTime > new Date().getTime()) {
+            throw new Error("battle not complete.");
+        }
 
         var redPartyKey = this.currentBattleKey + "@@@red";
         var bluePartyKey = this.currentBattleKey + "@@@blue";
@@ -220,26 +223,46 @@ BattleContract.prototype = {
                 var totalBonus = bluePartyItem.balance;
                 var founderBonus = totalBonus * this.founderCharge;
                 var adminBonus = totalBonus * this.adminCharge;
+                totalBonus = parseInt(totalBonus * 1000000);
+                founderBonus = parseInt(founderBonus * 1000000);
+                adminBonus = parseInt(adminBonus * 1000000);
                 var winnerBonus = totalBonus - founderBonus - adminBonus;
+                winnerBonus /= 1000000;
+                founderBonus /= 1000000;
+                adminBonus /= 1000000;
                 this._payOffFounder(founderBonus);
                 this._payOffWinner(redPartyKey, winnerBonus);
                 this._returnInvestment(redPartyKey);
                 this._payOffBank(adminBonus);
                 battleItem.winner = "red";
                 battleItem.founderBonus = founderBonus;
+            } else {
+                this._returnInvestment(redPartyKey);
+                battleItem.winner = "red";
+                battleItem.founderBonus = 0;
             }
         } else if (redPartyItem.balance < bluePartyItem.balance) {
             if (0 < redPartyItem.balance) {
                 var totalBonus = redPartyItem.balance;
                 var founderBonus = totalBonus * this.founderCharge;
                 var adminBonus = totalBonus * this.adminCharge;
+                totalBonus = parseInt(totalBonus * 1000000);
+                founderBonus = parseInt(founderBonus * 1000000);
+                adminBonus = parseInt(adminBonus * 1000000);
                 var winnerBonus = totalBonus - founderBonus - adminBonus;
+                winnerBonus /= 1000000;
+                founderBonus /= 1000000;
+                adminBonus /= 1000000;
                 this._payOffFounder(founderBonus);
                 this._payOffWinner(bluePartyKey, winnerBonus);
                 this._returnInvestment(bluePartyKey);
                 this._payOffBank(adminBonus);
                 battleItem.winner = "blue";
                 battleItem.founderBonus = founderBonus;
+            } else {
+                this._returnInvestment(bluePartyKey);
+                battleItem.winner = "blue";
+                battleItem.founderBonus = 0;
             }
         } else {
             if (0 < bluePartyItem.balance && 0 < redPartyItem.balance) {
@@ -247,13 +270,11 @@ BattleContract.prototype = {
                 var blueToFounderBonus = bluePartyItem.balance * this.founderCharge;
                 var redToAdminBonus = redPartyItem.balance * this.adminCharge;
                 var blueToAdminBonus = bluePartyItem.balance * this.adminCharge;
-                var founderBonus = redToFounderBonus + blueToFounderBonus;
-                var adminBonus = redToAdminBonus + blueToAdminBonus;
+                var founderBonus = parseInt((redToFounderBonus + blueToFounderBonus) * 1000000) / 1000000;
+                var adminBonus = parseInt((redToAdminBonus + blueToAdminBonus) * 1000000) / 100000;
                 this._payOffFounder(founderBonus);
-                this._payOffWinner(redPartyKey, redPartyItem.balance - redToFounderBonus - redToAdminBonus);
-                this._returnInvestment(redPartyKey);
-                this._payOffWinner(bluePartyKey, bluePartyItem.balance - blueToFounderBonus - blueToAdminBonus);
-                this._returnInvestment(bluePartyKey);
+                this._payOffWinner(redPartyKey, parseInt((redPartyItem.balance - redToFounderBonus - redToAdminBonus) * 1000000) / 1000000);
+                this._payOffWinner(bluePartyKey, parseInt((bluePartyItem.balance - blueToFounderBonus - blueToAdminBonus) * 1000000) / 1000000);
                 this._payOffBank(adminBonus);
                 battleItem.winner = "The two teams drew.";
                 battleItem.founderBonus = founderBonus;
@@ -367,21 +388,40 @@ BattleContract.prototype = {
         }
     },
 
-    getPartyInfo: function (battleId, flag) {
-        if (flag != "red" && flag != "blue") {
-            throw new Error("setup flag invalid");
+    getPartyInfo: function () {
+        var list = [];
+        if (this.isBattling) {
+            var redPartyKey = this.currentBattleKey + "@@@red";
+            var bluePartyKey = this.currentBattleKey + "@@@blue";
+            list.push(this.partyMap.get(redPartyKey));
+            list.push(this.partyMap.get(bluePartyKey));
+            return list;
         }
-        var partyKey = battleId + "@@@" + flag;
-        return this.partyMap.get(partyKey);
+        if (this.battleCount > 0) {
+            var redPartyKey = "battle@@@" + (this.battleCount - 1).toString() + "@@@red";
+            var bluePartyKey = "battle@@@" + (this.battleCount - 1).toString() + "@@@blue";
+            list.push(this.partyMap.get(redPartyKey));
+            list.push(this.partyMap.get(bluePartyKey));
+            return list;
+        }
+        return list;
     },
 
-    getBattleInfo: function (battleId) {
-        return this.battleMap.get(battleId);
+    getBattleInfo: function () {
+        if (this.isBattling) {
+            return this.battleMap.get(this.currentBattleKey);
+        }
+        if (this.battleCount > 0) {
+            var key = "battle@@@" + (this.battleCount - 1).toString();
+            return this.battleMap.get(key);
+        }
+        return null;
     },
 
     getBattleList: function () {
         var list = [];
-        for (var i = 0; i < this.battleCount; i ++) {
+        var size = this.battleCount - (this.currentBattleKey == "" ? 0 : 1);
+        for (var i = 0; i < size; i ++) {
             list.push(this.battleMap.get("battle@@@" + i.toString()));
         }
         return list;
@@ -455,21 +495,21 @@ BattleContract.prototype = {
         if (Blockchain.transaction.from != this.adminAddress) {
             throw new Error("Permission denied.");
         }
-        this.durationTime = durationTime;
+        this.durationTime = parseInt(durationTime);
     },
 
     setFounderCharge: function(founderCharge) {
         if (Blockchain.transaction.from != this.adminAddress) {
             throw new Error("Permission denied.");
         }
-        this.founderCharge = founderCharge;
+        this.founderCharge = parseFloat(founderCharge);
     },
 
     setAdminCharge: function(adminCharge) {
         if (Blockchain.transaction.from != this.adminAddress) {
             throw new Error("Permission denied.");
         }
-        this.adminCharge = adminCharge;
+        this.adminCharge = parseFloat(adminCharge);
     },
 
     withdraw: function(address, value) {
@@ -484,15 +524,15 @@ BattleContract.prototype = {
 
 module.exports = BattleContract;
 
-// setupBattle: function (setupFlag, battleName, redPartyDes, bluePartyDes) 发起battle
+// setupBattle: function (battleName, redPartyDes, bluePartyDes) 发起battle
 // joinBattle: function (flag) 加入battle
 // payOff: function () 发起结算
-// getPartyInfo: function (battleId, flag) 获得阵营信息
-// getBattleInfo: function (battleId) 获得battle信息
+// getPartyInfo: function () 获得阵营信息，如果battle未结束，返回当前battle阵营信息，否则返回上一次battle阵营信息
+// getBattleInfo: function () 获得battle信息，如果battle未结束，返回当前battle信息，否则返回上一次battle信息
 // getBattleList: function () 获得battle列表
-// getFightersInfo: function (battleId, flag) 获得fighter信息
+// getBattleStatus: function () 获得当前battle状态
 // getWinnerInfo: function (battleId) 获得胜利者信息
 // getTimeToEnd: function () 获得battle倒计时
 // getCurrentBattleId: function () 获得当前battle的id
 // getCurrentBattleNum: function () 获得battle数量
-// getBattleStatus: function () 获得当前battle状态
+// getFightersInfo: function (battleId, flag) 获得fighter信息
