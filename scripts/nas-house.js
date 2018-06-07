@@ -298,15 +298,15 @@ HouseContract.prototype = {
 
 module.exports = HouseContract;
 
-// saveResume: function (name, target, phone, email, profile, education, project, skill, price, houseId)
-// 存储简历信息：姓名，目标职位，电话，邮箱，简介，教育背景，项目经历，职业技能，定价，简历ID
-// checkResume: function (houseId)
-// 支付查看简历：简历ID
-// getResumeList: function (limit, offset)
-// 获得简历列表：每页数量，偏移量
-// getUserOwnedResumeList: function ()
-// 查看用户拥有的简历
-// getUserPaidResumeList: function ()
-// 查看用户支付的简历
-// getResume: function (houseId)
-// 获取简历内容：简历ID
+// saveHouse: function (title, tel, email, housePrice, address, area, houseType, sellType, usage, description, pic1, pic2, pic3, price, houseId)
+// 存储房屋信息：标题，电话，email，房价，地址，面积，户型，租售方式，用途，描述，图片1，图片2，图片3，信息定价，房屋ID
+// checkHouse: function (houseId)
+// 支付查看房屋信息：房屋ID
+// getHouseList: function (limit, offset)
+// 获得房屋列表：每页数量，偏移量
+// getUserOwnedHouseList: function ()
+// 查看用户拥有的房源信息
+// getUserPaidHouseList: function ()
+// 查看用户支付的房源信息
+// getHouse: function (houseId)
+// 获取房屋信息内容：房屋ID
