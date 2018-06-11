@@ -1,23 +1,23 @@
 "use strict";
 
-var HouseContract = function () {
+var FriendContract = function () {
     LocalContractStorage.defineMapProperty(this, "userRepo", null);
     LocalContractStorage.defineProperty(this, "userSize", null);
     LocalContractStorage.defineMapProperty(this, "userIdMap", null);
-    LocalContractStorage.defineMapProperty(this, "houseRepo", null);
-    LocalContractStorage.defineProperty(this, "houseSize", null);
+    LocalContractStorage.defineMapProperty(this, "friendRepo", null);
+    LocalContractStorage.defineProperty(this, "friendSize", null);
 
     LocalContractStorage.defineProperty(this, "adminAddress", null);
 };
 
-HouseContract.prototype = {
+FriendContract.prototype = {
     init: function () {
         this.userSize = 0;
-        this.houseSize = 0;
+        this.friendSize = 0;
         this.adminAddress = "n1PMUxrXSuHQcDRLRHLTrokqQHtDUXdXE9r";
     },
 
-    saveHouse: function (title,
+    saveFriend: function (title,
                          nick,
                          sex,
                          age,
@@ -25,13 +25,13 @@ HouseContract.prototype = {
                          wechat,
                          address,
                          profession,
-                         hobit,
+                         hobby,
                          pic1,
                          pic2,
                          pic3,
                          description,
                          price,
-                         houseId) {
+                         friendId) {
         if (isNaN(Number(price))) {
             var errorItem = {
                 "code": 6,
@@ -41,16 +41,16 @@ HouseContract.prototype = {
         }
 
         var from = Blockchain.transaction.from;
-        if (houseId) {
-            var house = this.houseRepo.get(houseId);
-            if (!house) {
+        if (friendId) {
+            var friend = this.friendRepo.get(friendId);
+            if (!friend) {
                 var errorItem = {
                     "code": 4,
-                    "message": "house is not defined"
+                    "message": "friend is not defined"
                 };
                 return errorItem;
             }
-            if (house["author"] != from) {
+            if (friend["author"] != from) {
                 var errorItem = {
                     "code": 5,
                     "message": "permission denied"
@@ -59,11 +59,11 @@ HouseContract.prototype = {
             }
         }
 
-        var house = this.houseRepo.get(houseId);
-        if (!house) {
-            houseId = this.houseSize;
-            this.houseSize += 1;
-            house = {
+        var friend = this.friendRepo.get(friendId);
+        if (!friend) {
+            friendId = this.friendSize;
+            this.friendSize += 1;
+            friend = {
                 "author": from,
                 "title": title,
                 "nick": nick,
@@ -73,7 +73,7 @@ HouseContract.prototype = {
                 "wechat": wechat,
                 "address": address,
                 "profession": profession,
-                "hobit": hobit,
+                "hobby": hobby,
                 "pic1": pic1,
                 "pic2": pic2,
                 "pic3": pic3,
@@ -81,26 +81,27 @@ HouseContract.prototype = {
                 "price": parseFloat(price),
                 "createTime": new Date().getTime(),
                 "paidCount": 0,
+                "fondCount": 0,
                 "status": 0, // 0已拥有，1已购买，2未购买
-                "houseId": houseId
+                "friendId": friendId
             };
         } else {
-            house["title"] = title;
-            house["nick"] = nick;
-            house["sex"] = sex;
-            house["age"] = age;
-            house["tel"] = tel;
-            house["wechat"] = wechat;
-            house["address"] = address;
-            house["profession"] = profession;
-            house["hobit"] = hobit;
-            house["pic1"] = pic1;
-            house["pic2"] = pic2;
-            house["pic3"] = pic3;
-            house["description"] = description;
-            house["price"] = parseFloat(price);
+            friend["title"] = title;
+            friend["nick"] = nick;
+            friend["sex"] = sex;
+            friend["age"] = age;
+            friend["tel"] = tel;
+            friend["wechat"] = wechat;
+            friend["address"] = address;
+            friend["profession"] = profession;
+            friend["hobby"] = hobby;
+            friend["pic1"] = pic1;
+            friend["pic2"] = pic2;
+            friend["pic3"] = pic3;
+            friend["description"] = description;
+            friend["price"] = parseFloat(price);
         }
-        this.houseRepo.set(houseId, house);
+        this.friendRepo.set(friendId, friend);
 
         var user = this.userRepo.get(from);
         if (!user) {
@@ -108,26 +109,26 @@ HouseContract.prototype = {
             this.userSize += 1;
             this.userIdMap.set(userId, from);
             var user = {
-                "owned": [houseId],
+                "owned": [friendId],
                 "paid": []
             };
         } else {
-            user["owned"].push(houseId);
+            user["owned"].push(friendId);
         }
         this.userRepo.set(from, user);
     },
 
-    checkHouse: function (houseId) {
-        var house = this.houseRepo.get(houseId);
-        if (!house) {
+    checkFriend: function (friendId) {
+        var friend = this.friendRepo.get(friendId);
+        if (!friend) {
             var errorItem = {
                 "code": 1,
-                "message": "houseId is not found"
+                "message": "friendId is not found"
             };
             return errorItem;
         }
         var value = Blockchain.transaction.value.dividedBy(1000000000000000000).toNumber();
-        var price = parseFloat(house["price"]);
+        var price = parseFloat(friend["price"]);
         if (value < price) {
             Blockchain.transfer(this.adminAddress, value * 1000000000000000000);
             var errorItem = {
@@ -136,7 +137,7 @@ HouseContract.prototype = {
             };
             return errorItem;
         }
-        var flag = Blockchain.transfer(house["author"], price * 1000000000000000000);
+        var flag = Blockchain.transfer(friend["author"], price * 1000000000000000000);
         if (flag == true) {
             var from = Blockchain.transaction.from;
             var user = this.userRepo.get(from);
@@ -149,11 +150,12 @@ HouseContract.prototype = {
                     "paid": []
                 }
             }
-            user["paid"].push(houseId);
+            user["paid"].push(friendId);
             this.userRepo.set(from, user);
 
-            house["paidCount"] += 1;
-            this.houseRepo.set(houseId, house);
+            friend["paidCount"] += 1;
+            friend["fondCount"] += 1;
+            this.friendRepo.set(friendId, friend);
 
             var successItem = {
                 "code": "0",
@@ -164,10 +166,31 @@ HouseContract.prototype = {
         return null;
     },
 
-    getHouseList: function (limit, offset) {
+    fondFriend: function (friendId) {
+        var friend = this.friendRepo.get(friendId);
+        if (!friend) {
+            var errorItem = {
+                "code": 1,
+                "message": "friendId is not found"
+            };
+            return errorItem;
+        }
+        var value = Blockchain.transaction.value.dividedBy(1000000000000000000).toNumber();
+        var flag = false;
+        if (value == 0) {
+            flag = true;
+        } else {
+            flag = Blockchain.transfer(friend["author"], price * 1000000000000000000);
+        }
+        if (flag == true) {
+            friend["fondCount"] += 1;
+        }
+    },
+
+    getFriendList: function (limit, offset, sex) {
         var limitNum = parseInt(limit);
         var offsetNum = parseInt(offset);
-        if (offsetNum > this.houseSize) {
+        if (offsetNum > this.friendSize) {
             var errorItem = {
                 "code": 3,
                 "message": "offset if invalid"
@@ -175,8 +198,8 @@ HouseContract.prototype = {
             return errorItem;
         }
         var number = offsetNum + limitNum;
-        if (number > this.houseSize) {
-            number = this.houseSize;
+        if (number > this.friendSize) {
+            number = this.friendSize;
         }
 
         var from = Blockchain.transaction.from;
@@ -184,28 +207,31 @@ HouseContract.prototype = {
 
         var list = [];
         for (var i = offsetNum; i < number; i ++) {
-            var house = this.houseRepo.get(i);
-            house["tel"] = "***";
-            house["wechat"] = "***";
-            if (from == house["author"]) {
-                house["status"] = 0; //已拥有
+            var friend = this.friendRepo.get(i);
+            friend["tel"] = "***";
+            friend["wechat"] = "***";
+            if (from == friend["author"]) {
+                friend["status"] = 0; //已拥有
             } else {
-                house["status"] = 2; //未购买
+                friend["status"] = 2; //未购买
             }
 
             if (user) {
                 for (var index in user["paid"]) {
-                    if (house["author"] == user["paid"][index]) {
-                        house["status"] = 1; //已购买
+                    if (friend["author"] == user["paid"][index]) {
+                        friend["status"] = 1; //已购买
                     }
                 }
             }
-            list.push(house);
+
+            if (friend['sex'] == sex) {
+                list.push(friend);
+            }
         }
         return list;
     },
 
-    getUserOwnedHouseList: function () {
+    getUserOwnedFriendList: function () {
         var list = [];
         var from = Blockchain.transaction.from;
         var user = this.userRepo.get(from);
@@ -213,16 +239,16 @@ HouseContract.prototype = {
             return list;
         }
         for (var index in user["owned"]) {
-            var house = this.houseRepo.get(user["owned"][index]);
-            house["tel"] = "***";
-            house["wechat"] = "***";
-            house["status"] = 0;
-            list.push(house);
+            var friend = this.friendRepo.get(user["owned"][index]);
+            friend["tel"] = "***";
+            friend["wechat"] = "***";
+            friend["status"] = 0;
+            list.push(friend);
         }
         return list;
     },
 
-    getUserPaidHouseList: function () {
+    getUserPaidFriendList: function () {
         var list = [];
         var from = Blockchain.transaction.from;
         var user = this.userRepo.get(from);
@@ -230,46 +256,46 @@ HouseContract.prototype = {
             return list;
         }
         for (var index in user["paid"]) {
-            var house = this.houseRepo.get(user["paid"][index]);
-            house["tel"] = "***";
-            house["wechat"] = "***";
-            house["status"] = 1;
-            list.push(house);
+            var friend = this.friendRepo.get(user["paid"][index]);
+            friend["tel"] = "***";
+            friend["wechat"] = "***";
+            friend["status"] = 1;
+            list.push(friend);
         }
         return list;
     },
 
-    getHouse: function (houseId) {
+    getFriend: function (friendId) {
         var from = Blockchain.transaction.from
-        var house = this.houseRepo.get(houseId);
-        if (!house) {
+        var friend = this.friendRepo.get(friendId);
+        if (!friend) {
             return null;
         }
-        var tel = house["tel"];
-        var wechat = house["wechat"];
-        house["tel"] = "***";
-        house["wechat"] = "***";
+        var tel = friend["tel"];
+        var wechat = friend["wechat"];
+        friend["tel"] = "***";
+        friend["wechat"] = "***";
 
-        if (house["author"] == from) {
-            house["tel"] = tel;
-            house["wechat"] = wechat;
-            house["status"] = 0;
+        if (friend["author"] == from) {
+            friend["tel"] = tel;
+            friend["wechat"] = wechat;
+            friend["status"] = 0;
         } else {
-            house["status"] = 2;
+            friend["status"] = 2;
         }
 
         var user = this.userRepo.get(from);
         if (user) {
             for (var index in user["paid"]) {
-                if (houseId == user["paid"][index]) {
-                    house["tel"] = tel;
-                    house["wechat"] = wechat;
-                    house["status"] = 1;
+                if (friendId == user["paid"][index]) {
+                    friend["tel"] = tel;
+                    friend["wechat"] = wechat;
+                    friend["status"] = 1;
                 }
             }
         }
 
-        return house;
+        return friend;
     },
 
     withdraw: function(address, value) {
@@ -282,17 +308,17 @@ HouseContract.prototype = {
     }
 };
 
-module.exports = HouseContract;
+module.exports = FriendContract;
 
-// saveHouse: function (title, tel, wechat, housePrice, address, area, houseType, sellType, usage, description, pic1, pic2, pic3, price, houseId)
+// saveFriend: function (title, tel, wechat, friendPrice, address, area, friendType, sellType, usage, description, pic1, pic2, pic3, price, friendId)
 // 存储房屋信息：标题，电话，wechat，房价，地址，面积，户型，租售方式，用途，描述，图片1，图片2，图片3，信息定价，房屋ID
-// checkHouse: function (houseId)
+// checkFriend: function (friendId)
 // 支付查看房屋信息：房屋ID
-// getHouseList: function (limit, offset)
+// getFriendList: function (limit, offset)
 // 获得房屋列表：每页数量，偏移量
-// getUserOwnedHouseList: function ()
+// getUserOwnedFriendList: function ()
 // 查看用户拥有的房源信息
-// getUserPaidHouseList: function ()
+// getUserPaidFriendList: function ()
 // 查看用户支付的房源信息
-// getHouse: function (houseId)
+// getFriend: function (friendId)
 // 获取房屋信息内容：房屋ID
