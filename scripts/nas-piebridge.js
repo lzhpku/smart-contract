@@ -110,7 +110,8 @@ FriendContract.prototype = {
             this.userIdMap.set(userId, from);
             var user = {
                 "owned": [friendId],
-                "paid": []
+                "paid": [],
+                "fond": []
             };
         } else {
             user["owned"].push(friendId);
@@ -147,15 +148,19 @@ FriendContract.prototype = {
                 this.userIdMap.set(userId, from);
                 user = {
                     "owned": [],
-                    "paid": []
+                    "paid": [],
+                    "fond": []
                 }
             }
-            user["paid"].push(friendId);
+            user["paid"].push(friend['author']);
+            user["fond"].push(friend['author']);
             this.userRepo.set(from, user);
 
             friend["paidCount"] += 1;
             friend["fondCount"] += 1;
             this.friendRepo.set(friendId, friend);
+
+            this._checkMutual(friend['author'], from);
 
             var successItem = {
                 "code": "0",
@@ -167,6 +172,7 @@ FriendContract.prototype = {
     },
 
     fondFriend: function (friendId) {
+        var from = Blockchain.transaction.from;
         var friend = this.friendRepo.get(friendId);
         if (!friend) {
             var errorItem = {
@@ -183,8 +189,50 @@ FriendContract.prototype = {
             flag = Blockchain.transfer(friend["author"], price * 1000000000000000000);
         }
         if (flag == true) {
+            var user = this.userRepo.get(from);
+            if (!user) {
+                var userId = this.userSize.toString();
+                this.userSize += 1;
+                this.userIdMap.set(userId, from);
+                user = {
+                    "owned": [],
+                    "paid": [],
+                    "fond": []
+                }
+            }
+            user["fond"].push(friend['author']);
+            this.userRepo.set(from, user);
+
             friend["fondCount"] += 1;
+            this.friendRepo.set(friendId, friend);
+
+            this._checkMutual(friend['author'], from);
         }
+    },
+
+    _checkMutual: function (friendAuthor, from) {
+        var friend = this.userRepo.get(friendAuthor);
+        if (!friend) {
+            var errorItem = {
+                "code": 1,
+                "message": "friendId is not found"
+            };
+            return errorItem;
+        }
+        for (var index in friend["fond"]) {
+            if (from == friend["fond"][index]) {
+                var user = this.userRepo.get(from);
+                user["paid"].push(friendAuthor);
+                this.userRepo.set(from, user);
+                friend["paid"].push(from);
+                this.userRepo.set(friendAuthor, friend);
+                break;
+            }
+        }
+    },
+
+    getUserInfo: function (from) {
+        return this.userRepo.get(from);
     },
 
     getFriendList: function (limit, offset, sex) {
@@ -208,6 +256,9 @@ FriendContract.prototype = {
         var list = [];
         for (var i = offsetNum; i < number; i ++) {
             var friend = this.friendRepo.get(i);
+            if (!friend) {
+                continue;
+            }
             friend["tel"] = "***";
             friend["wechat"] = "***";
             if (from == friend["author"]) {
@@ -240,6 +291,9 @@ FriendContract.prototype = {
         }
         for (var index in user["owned"]) {
             var friend = this.friendRepo.get(user["owned"][index]);
+            if (!friend) {
+                continue;
+            }
             friend["tel"] = "***";
             friend["wechat"] = "***";
             friend["status"] = 0;
@@ -248,28 +302,15 @@ FriendContract.prototype = {
         return list;
     },
 
-    getUserPaidFriendList: function () {
-        var list = [];
-        var from = Blockchain.transaction.from;
-        var user = this.userRepo.get(from);
-        if (!user) {
-            return list;
-        }
-        for (var index in user["paid"]) {
-            var friend = this.friendRepo.get(user["paid"][index]);
-            friend["tel"] = "***";
-            friend["wechat"] = "***";
-            friend["status"] = 1;
-            list.push(friend);
-        }
-        return list;
-    },
-
     getFriend: function (friendId) {
-        var from = Blockchain.transaction.from
+        var from = Blockchain.transaction.from;
         var friend = this.friendRepo.get(friendId);
         if (!friend) {
-            return null;
+            var errorItem = {
+                "code": 1,
+                "message": "friendId is not found"
+            };
+            return errorItem;
         }
         var tel = friend["tel"];
         var wechat = friend["wechat"];
@@ -287,7 +328,7 @@ FriendContract.prototype = {
         var user = this.userRepo.get(from);
         if (user) {
             for (var index in user["paid"]) {
-                if (friendId == user["paid"][index]) {
+                if (friend['author'] == user["paid"][index]) {
                     friend["tel"] = tel;
                     friend["wechat"] = wechat;
                     friend["status"] = 1;
@@ -296,6 +337,42 @@ FriendContract.prototype = {
         }
 
         return friend;
+    },
+
+    modify: function(friendId, key, value) {
+        var from = Blockchain.transaction.from
+        if (from != this.adminAddress) {
+            throw new Error("Permission denied.");
+        }
+        var friend = this.friendRepo.get(friendId);
+        if (!friend) {
+            var errorItem = {
+                "code": 1,
+                "message": "friendId is not found"
+            };
+            return errorItem;
+        }
+        friend[key] = value;
+        this.friendRepo.set(friendId, friend);
+    },
+
+    deleteFriend: function(friendId) {
+        var from = Blockchain.transaction.from
+        if (from != this.adminAddress) {
+            throw new Error("Permission denied.");
+        }
+        var friendLastId = this.friendSize - 1;
+        this.friendSize -= 1;
+
+        var friend = this.friendRepo.get(friendLastId);
+        if (!friend) {
+            var errorItem = {
+                "code": 1,
+                "message": "friendId is not found"
+            };
+            return errorItem;
+        }
+        this.friendRepo.set(friendId, friend);
     },
 
     withdraw: function(address, value) {
@@ -310,15 +387,22 @@ FriendContract.prototype = {
 
 module.exports = FriendContract;
 
-// saveFriend: function (title, tel, wechat, friendPrice, address, area, friendType, sellType, usage, description, pic1, pic2, pic3, price, friendId)
-// 存储房屋信息：标题，电话，wechat，房价，地址，面积，户型，租售方式，用途，描述，图片1，图片2，图片3，信息定价，房屋ID
+// saveFriend: function (title, nick, sex, age, tel, wechat, address, profession, hobby, pic1, pic2, pic3,
+// description, price, friendId)
+// 存储征友信息：标题，昵称，性别，年龄，电话，微信，所在地区，工作职业，兴趣爱好，照片1，照片2，照片3，信息定价，征友信息ID
 // checkFriend: function (friendId)
-// 支付查看房屋信息：房屋ID
-// getFriendList: function (limit, offset)
-// 获得房屋列表：每页数量，偏移量
+// 支付查看征友信息：征友信息ID
+// fondFriend: function (friendId)
+// 点赞喜欢：征友信息ID
+// _checkMutual: function (friendAuthor, from)
+// 更新相互点赞状态：征友信息发布用户地址，应征用户地址
+// getFriendList: function (limit, offset, sex)
+// 获得征友信息列表：每页数量，偏移量，性别
 // getUserOwnedFriendList: function ()
-// 查看用户拥有的房源信息
-// getUserPaidFriendList: function ()
-// 查看用户支付的房源信息
+// 查看用户发布的征友信息
 // getFriend: function (friendId)
-// 获取房屋信息内容：房屋ID
+// 获取征友信息内容：征友信息ID
+// modify: function(friendId, key, value)
+// 管理员修改征友信息属性：征友信息ID，键，值
+// deleteFriend: function(friendId)
+// 管理员删除征友信息：征友信息ID
