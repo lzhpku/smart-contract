@@ -186,7 +186,7 @@ FriendContract.prototype = {
         if (value == 0) {
             flag = true;
         } else {
-            flag = Blockchain.transfer(friend["author"], price * 1000000000000000000);
+            flag = Blockchain.transfer(friend["author"], value * 1000000000000000000);
         }
         if (flag == true) {
             var user = this.userRepo.get(from);
