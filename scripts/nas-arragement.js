@@ -141,7 +141,8 @@ ArrangementContract.prototype = {
             "title" : arrangement['title'],
             "contract" : contract,
             "description" : description,
-            "status" : 0, // 0 用户已申请，1 发布者已确认，2 发布者已取消，3 用户确认付款，4 用户取消
+            "status" : 0, // 0 用户已申请，1 发布者已确认，2 发布者/用户已取消，3 用户确认付款
+            "operation" : true,
         }
         this.orderRepo.set(orderId, order);
 
@@ -319,7 +320,7 @@ ArrangementContract.prototype = {
         for (var index in user["ordered"]) {
             if (orderId == user["ordered"][index]) {
                 if (order["status"] == 1) {
-                    order["status"] = 4;
+                    order["status"] = 2;
                     this.orderRepo.set(orderId, order);
                     return;
                 } else {
@@ -395,7 +396,15 @@ ArrangementContract.prototype = {
         return arrangement;
     },
 
-    getUserOwnedOrderList: function () {
+    getUserOrderList: function (status) {
+        if (isNaN(Number(status))) {
+            var errorItem = {
+                "code": 100,
+                "message": "can not convert status to digit"
+            };
+            return errorItem;
+        }
+
         var list = [];
         var from = Blockchain.transaction.from;
         var user = this.userRepo.get(from);
@@ -407,22 +416,22 @@ ArrangementContract.prototype = {
             if (!order) {
                 continue;
             }
+            if (status == 0) {
+                order['operation'] = true;
+            } else {
+                order['operation'] = false;
+            }
             list.push(order);
-        }
-        return list;
-    },
-
-    getUserOrderedOrderList: function () {
-        var list = [];
-        var from = Blockchain.transaction.from;
-        var user = this.userRepo.get(from);
-        if (!user) {
-            return list;
         }
         for (var index in user["ordered"]) {
             var order = this.orderRepo.get(user["ordered"][index]);
             if (!order) {
                 continue;
+            }
+            if (status == 1) {
+                order['operation'] = true;
+            } else {
+                order['operation'] = false;
             }
             list.push(order);
         }
