@@ -132,7 +132,7 @@ ArrangementContract.prototype = {
             return errorItem;
         }
 
-        var orderId = arrangementId + arrangement['orderedCount'].toString();
+        var orderId = arrangementId + "@@@" + arrangement['orderedCount'].toString();
         var order = {
             "arrangementId" : arrangementId,
             "orderId" : orderId,
@@ -413,7 +413,7 @@ ArrangementContract.prototype = {
         }
         for (var index in user["owned"]) {
             var order = this.orderRepo.get(user["owned"][index]);
-            if (!order) {
+            if (!order || order['status'] != status) {
                 continue;
             }
             if (status == 0) {
@@ -425,7 +425,7 @@ ArrangementContract.prototype = {
         }
         for (var index in user["ordered"]) {
             var order = this.orderRepo.get(user["ordered"][index]);
-            if (!order) {
+            if (!order || order['status'] != status) {
                 continue;
             }
             if (status == 1) {
