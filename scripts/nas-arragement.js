@@ -113,6 +113,7 @@ ArrangementContract.prototype = {
     },
 
     applyArrangement: function (arrangementId, contract, description) {
+        var from = Blockchain.transaction.from;
         var arrangement = this.arrangementRepo.get(arrangementId);
         if (!arrangement) {
             var errorItem = {
@@ -136,6 +137,7 @@ ArrangementContract.prototype = {
         var order = {
             "arrangementId" : arrangementId,
             "orderId" : orderId,
+            "user": from,
             "createTime": new Date().getTime(),
             "price" : arrangement['price'],
             "title" : arrangement['title'],
@@ -153,7 +155,6 @@ ArrangementContract.prototype = {
         promulgator['owned'].push(orderId);
         this.userRepo.set(arrangement['author'], promulgator);
 
-        var from = Blockchain.transaction.from;
         var user = this.userRepo.get(from);
         if (!user) {
             var userId = this.userSize.toString();
@@ -229,9 +230,18 @@ ArrangementContract.prototype = {
         for (var index in user["owned"]) {
             if (orderId == user["owned"][index]) {
                 if (order["status"] == 0) {
-                    order["status"] = 2;
-                    this.orderRepo.set(orderId, order);
-                    return;
+                    var arrangement = this.arrangementRepo.get(order["arrangementId"]);
+                    var flag = Blockchain.transfer(order["user"], arrangement["price"] * 1000000000000000000);
+                    if (flag == true) {
+                        order["status"] = 2;
+                        this.orderRepo.set(orderId, order);
+                        return;
+                    }
+                    var errorItem = {
+                        "code": 300,
+                        "message": "insufficient balance",
+                    };
+                    return errorItem;
                 } else {
                     var errorItem = {
                         "code": 400,
@@ -320,9 +330,18 @@ ArrangementContract.prototype = {
         for (var index in user["ordered"]) {
             if (orderId == user["ordered"][index]) {
                 if (order["status"] == 1) {
-                    order["status"] = 2;
-                    this.orderRepo.set(orderId, order);
-                    return;
+                    var arrangement = this.arrangementRepo.get(order["arrangementId"]);
+                    var flag = Blockchain.transfer(from, arrangement["price"] * 1000000000000000000);
+                    if (flag == true) {
+                        order["status"] = 2;
+                        this.orderRepo.set(orderId, order);
+                        return;
+                    }
+                    var errorItem = {
+                        "code": 300,
+                        "message": "insufficient balance",
+                    };
+                    return errorItem;
                 } else {
                     var errorItem = {
                         "code": 400,
