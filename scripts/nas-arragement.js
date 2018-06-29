@@ -233,6 +233,11 @@ ArrangementContract.prototype = {
                     var arrangement = this.arrangementRepo.get(order["arrangementId"]);
                     var flag = Blockchain.transfer(order["user"], arrangement["price"] * 1000000000000000000);
                     if (flag == true) {
+                        arrangement["orderedCount"] -= 1;
+                        if (arrangement["orderedCount"] <= 0) {
+                            arrangement["orderedCount"] = 0;
+                        }
+                        this.arrangementRepo.set(order["arrangementId"], arrangement);
                         order["status"] = 2;
                         this.orderRepo.set(orderId, order);
                         return;
@@ -333,6 +338,11 @@ ArrangementContract.prototype = {
                     var arrangement = this.arrangementRepo.get(order["arrangementId"]);
                     var flag = Blockchain.transfer(from, arrangement["price"] * 1000000000000000000);
                     if (flag == true) {
+                        arrangement["orderedCount"] -= 1;
+                        if (arrangement["orderedCount"] <= 0) {
+                            arrangement["orderedCount"] = 0;
+                        }
+                        this.arrangementRepo.set(order["arrangementId"], arrangement);
                         order["status"] = 2;
                         this.orderRepo.set(orderId, order);
                         return;
@@ -505,22 +515,26 @@ ArrangementContract.prototype = {
 
 module.exports = ArrangementContract;
 
-// saveArrangement: function (title, nick, sex, age, tel, wechat, address, profession, hobby, pic1, pic2, pic3,
-// description, price, arrangementId)
-// 存储征友信息：标题，昵称，性别，年龄，电话，微信，所在地区，工作职业，兴趣爱好，照片1，照片2，照片3，信息定价，征友信息ID
-// checkArrangement: function (arrangementId)
-// 支付查看征友信息：征友信息ID
-// fondArrangement: function (arrangementId)
-// 点赞喜欢：征友信息ID
-// _checkMutual: function (arrangementAuthor, from)
-// 更新相互点赞状态：征友信息发布用户地址，应征用户地址
-// getArrangementList: function (limit, offset, sex)
-// 获得征友信息列表：每页数量，偏移量，性别
-// getUserOwnedArrangementList: function ()
-// 查看用户发布的征友信息
+// saveArrangement: function (title, nick, sex, age, address, profession, pic1, pic2, pic3, description, price,
+// arrangementId)
+// 存储约会信息：标题，昵称，性别，年龄，所在地区，工作职业，照片1，照片2，照片3，约会内容描述，约会基金额度，约会信息ID
+// applyArrangement: function (arrangementId, contract, description)
+// 创建约会心愿单：约会信息ID，联系方式，自我介绍
+// promulgatorComfirm: function (orderId)
+// 发起人确认约会：约会信息ID
+// promulgatorCancel: function (orderId)
+// 发起人取消约会：约会信息ID
+// userComfirm: function (orderId)
+// 用户确认约会：约会信息ID
+// userCancel: function (orderId)
+// 用户确认约会：约会信息ID
+// getArrangementList: function (limit, offset)
+// 获得约会信息列表：每页数量，偏移量
 // getArrangement: function (arrangementId)
-// 获取征友信息内容：征友信息ID
+// 获取约会信息内容：约会信息ID
+// getUserOrderList: function (status)
+// 获得约会心愿单列表：心愿单状态
 // modify: function(arrangementId, key, value)
-// 管理员修改征友信息属性：征友信息ID，键，值
+// 管理员修改约会信息属性：约会信息ID，键，值
 // deleteArrangement: function(arrangementId)
-// 管理员删除征友信息：征友信息ID
+// 管理员删除约会信息：约会信息ID
