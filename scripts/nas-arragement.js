@@ -288,6 +288,10 @@ ArrangementContract.prototype = {
                     var flag = Blockchain.transfer(arrangement["author"], arrangement["price"] * 1000000000000000000);
                     if (flag == true) {
                         arrangement["paidCount"] += 1;
+                        arrangement["orderedCount"] -= 1;
+                        if (arrangement["orderedCount"] <= 0) {
+                            arrangement["orderedCount"] = 0;
+                        }
                         this.arrangementRepo.set(order["arrangementId"], arrangement);
                         order["status"] = 3;
                         this.orderRepo.set(orderId, order);
