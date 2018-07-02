@@ -78,6 +78,7 @@ ArrangementContract.prototype = {
                 "price": parseFloat(price),
                 "orderedCount": 0,
                 "paidCount": 0,
+                "orderCount": 0,
                 "status": 0,
                 "createTime": new Date().getTime(),
                 "arrangementId": arrangementId
@@ -133,7 +134,7 @@ ArrangementContract.prototype = {
             return errorItem;
         }
 
-        var orderId = arrangementId + "@@@" + arrangement['orderedCount'].toString();
+        var orderId = arrangementId + "@@@" + arrangement['orderCount'].toString();
         var order = {
             "arrangementId" : arrangementId,
             "orderId" : orderId,
@@ -149,6 +150,7 @@ ArrangementContract.prototype = {
         this.orderRepo.set(orderId, order);
 
         arrangement['orderedCount'] += 1;
+        arrangement['orderCount'] += 1;
         this.arrangementRepo.set(arrangementId, arrangement);
 
         var promulgator = this.userRepo.get(arrangement['author']);
