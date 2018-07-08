@@ -233,7 +233,7 @@ ArrangementContract.prototype = {
             if (orderId == user["owned"][index]) {
                 if (order["status"] == 0) {
                     var arrangement = this.arrangementRepo.get(order["arrangementId"]);
-                    var flag = Blockchain.transfer(order["user"], arrangement["price"] * 1000000000000000000);
+                    var flag = Blockchain.transfer(order["user"], order["price"] * 1000000000000000000);
                     if (flag == true) {
                         arrangement["orderedCount"] -= 1;
                         if (arrangement["orderedCount"] <= 0) {
@@ -287,7 +287,7 @@ ArrangementContract.prototype = {
             if (orderId == user["ordered"][index]) {
                 if (order["status"] == 1) {
                     var arrangement = this.arrangementRepo.get(order["arrangementId"]);
-                    var flag = Blockchain.transfer(arrangement["author"], arrangement["price"] * 1000000000000000000);
+                    var flag = Blockchain.transfer(arrangement["author"], order["price"] * 1000000000000000000);
                     if (flag == true) {
                         arrangement["paidCount"] += 1;
                         arrangement["orderedCount"] -= 1;
@@ -342,7 +342,7 @@ ArrangementContract.prototype = {
             if (orderId == user["ordered"][index]) {
                 if (order["status"] == 1) {
                     var arrangement = this.arrangementRepo.get(order["arrangementId"]);
-                    var flag = Blockchain.transfer(from, arrangement["price"] * 1000000000000000000);
+                    var flag = Blockchain.transfer(from, order["price"] * 1000000000000000000);
                     if (flag == true) {
                         arrangement["orderedCount"] -= 1;
                         if (arrangement["orderedCount"] <= 0) {
